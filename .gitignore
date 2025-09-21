@@ -1,0 +1,9 @@
+# Entornos
+.env
+
+# Archivos de Python
+__pycache__/
+*.pyc
+
+# Archivos de Node
+node_modules/

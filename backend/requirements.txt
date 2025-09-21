@@ -1,0 +1,11 @@
+django
+djangorestframework
+psycopg2-binary
+python-dotenv
+django-cors-headers
+pgvector
+sentence-transformers
+torch
+requests
+djangorestframework-simplejwt
+djoser

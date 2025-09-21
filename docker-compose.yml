@@ -1,0 +1,57 @@
+services:
+  # Servicio del Backend (Django)
+  backend:
+    build: ./backend
+    container_name: backend_service
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./backend:/app
+    ports: 
+      - "8000:8000"
+    environment:
+      - POSTGRES_NAME=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
+    depends_on:
+      - db
+      - ollama
+
+  # Servicio del Frontend (React)
+  frontend:
+    build: ./frontend
+    container_name: frontend_service
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    stdin_open: true
+    tty: true
+
+  # Servicio de la Base de Datos (PostgreSQL)
+  db:
+    image: pgvector/pgvector:pg15
+    container_name: postgres_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
+
+  # Servicio de Ollama
+  ollama:
+    image: ollama/ollama
+    container_name: ollama_service
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+
+volumes:
+  postgres_data:
+  ollama_data:
