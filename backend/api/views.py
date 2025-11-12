@@ -77,7 +77,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         'prompt': prompt,
                         'stream': False
                     },
-                    timeout=60
+                    timeout=180
                 )
                 response.raise_for_status()
                 answer = response.json().get('response', 'No se recibió respuesta del modelo.')

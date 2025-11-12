@@ -63,7 +63,7 @@ function ProjectList() {
   return (
     <Container maxWidth="md">
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h3" component="h1" gutterBottom>SEBTRELLO</Typography>
+        <Typography variant="h3" component="h1" gutterBottom>Gestor de proyectos</Typography>
         <Button variant="outlined" onClick={logoutUser}>Cerrar Sesión</Button>
       </Box>
       <Typography variant="h5" component="h2" gutterBottom>Proyectos de {user?.username}</Typography>

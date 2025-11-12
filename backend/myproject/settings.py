@@ -146,6 +146,7 @@ CORS_ORIGIN_ALLOW_ALL = True
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://192.168.100.181:3000",
+    "*",
 ]
 
 REST_FRAMEWORK = {
