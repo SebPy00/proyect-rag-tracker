@@ -5,6 +5,7 @@ import ProjectBoard from './ProjectBoard';
 import LoginPage from './pages/LoginPage';
 import ProtectedRoute from './utils/ProtectedRoute';
 import AuthContext from './context/AuthContext';
+import UsersPage from "./admin/UsersPage";
 import {
   Typography, List, ListItem, ListItemText,
   TextField, Button, Box, ListItemButton,
@@ -144,6 +145,7 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<ProjectList />} />
           <Route path="/project/:projectId" element={<ProjectBoard />} />
+          <Route path="/admin/users" element={<UsersPage />} />
         </Route>
       </Routes>
     </MainLayout>
