@@ -1,46 +1,42 @@
-# Getting Started with Create React App
+# Project RAG Tracker Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+The frontend is the React and TypeScript client for Project RAG Tracker. It provides JWT login, a user-scoped project list, drag-and-drop Kanban boards, task editing, a project RAG chat, and a user administration view.
 
-## Available Scripts
+## Stack
 
-In the project directory, you can run:
+- React 19 with TypeScript and Create React App
+- Material UI and Emotion
+- React Router
+- Axios
+- `dnd-kit`
+- `jwt-decode` and Day.js
 
-### `npm start`
+## Main Areas
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+- `src/App.tsx` defines the project list and client-side routes.
+- `src/ProjectBoard.tsx` contains the board, column/task drag and drop, and chat panel.
+- `src/TaskDetailModal.tsx` edits task titles and descriptions.
+- `src/context/AuthContext.tsx` owns login, logout, decoded user state, and browser token persistence.
+- `src/api/axiosInstance.ts` attaches and refreshes JWT access tokens.
+- `src/admin/` contains the user administration interface.
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## Backend Communication
 
-### `npm test`
+Set `REACT_APP_API_URL` when starting the frontend. For the default local backend:
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```bash
+REACT_APP_API_URL=http://localhost:8000 npm start
+```
 
-### `npm run build`
+PowerShell:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```powershell
+$env:REACT_APP_API_URL = "http://localhost:8000"
+npm start
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+Axios sends REST requests to Django. The authenticated client stores the access/refresh token pair in `localStorage`, adds the access token to requests, and calls the refresh endpoint when the access token expires.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+The board loads a project with nested columns and tasks. Dragging persists column order, task order, or the task's destination column through `PATCH` requests. The chat posts a question to the selected project's `ask` action and reloads the stored project history after completion.
 
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
-
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+See the repository-level [README](../README.md), [architecture documentation](../docs/architecture.md), and [RAG pipeline documentation](../docs/rag-pipeline.md) for the full system context.
