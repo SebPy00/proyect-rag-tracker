@@ -1,0 +1,4 @@
+-r requirements.txt
+sentence-transformers>=5,<6
+# Install CPU torch first using the official CPU index when no GPU is available.
+torch>=2.6,<3
