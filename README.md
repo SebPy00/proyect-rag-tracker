@@ -113,6 +113,26 @@ dc up -d backend frontend
 
 No montes un directorio de datos PostgreSQL 15 directamente en PostgreSQL 16. Para migrar datos de una versión anterior utiliza dump/restore y prueba la compatibilidad. El PostgreSQL existente del servidor solo es alternativa si tiene pgvector, un rol y base exclusivos, conectividad privada y backups coordinados; el despliegue incluido no lo utiliza.
 
+## Tablero de demostración (carga manual y opcional)
+
+La versión que contiene `seed_demo_board` permite crear **DATALAB — Demo de Gestión de Proyectos**, con cinco columnas ordenadas (BACKLOG, POR HACER, EN PROGRESO, EN REVISIÓN y FINALIZADO) y tres tareas por columna. Todo el contenido es ficticio y demostrativo; no incluye información de clientes ni acredita que las tareas representadas se hayan realizado realmente.
+
+Después de instalar manualmente esa versión, ejecuta desde el directorio de la aplicación y contra el contenedor Django **existente**. Sustituye `usuario_existente` por el nombre exacto del propietario que podrá ver el tablero:
+
+```bash
+dc() { docker compose --env-file .env.prod -p rag-tracker-prod -f compose.prod.yml "$@"; }
+# Primero inspeccionar el plan: no escribe datos.
+dc exec backend python manage.py seed_demo_board --username usuario_existente --dry-run
+# Ejecutar solo tras verificar el usuario y la base de destino.
+dc exec backend python manage.py seed_demo_board --username usuario_existente
+```
+
+Si administras el contenedor sin Compose, el equivalente es `docker exec -it NOMBRE_DEL_CONTENEDOR_DJANGO python manage.py seed_demo_board --username usuario_existente --dry-run`; retira `--dry-run` únicamente para realizar la carga. No se crea un usuario automáticamente y un nombre inexistente produce un error sin escrituras. El resumen muestra el propietario, el proyecto y las cantidades previstas/creadas. Los índices de orden comienzan en cero, tanto para las cinco columnas como para las tres tareas de cada columna.
+
+La creación de proyecto, columnas y tareas es atómica: ante un error no queda un tablero parcial. El comando serializa sus ejecuciones para el mismo propietario mediante un bloqueo de fila. La identidad del demo es el **nombre exacto del proyecto y su propietario**. Si ya existe, se omite completo: no duplica el tablero, no sobrescribe ediciones ni repone tareas/columnas eliminadas. Tampoco completa un tablero preexistente que esté incompleto. Otro propietario puede tener su propio demo independiente. Si se renombra el proyecto, deja de coincidir con esa identidad: no vuelvas a ejecutar el comando esperando que reconozca el proyecto renombrado.
+
+Los otros proyectos y tareas se conservan. No hay opción de forzar/reemplazar ni cambios de esquema, migraciones automáticas o carga al arrancar Docker. Mantén `AI_ENABLED=false` y `EMBEDDINGS_ENABLED=false`: el comando utiliza los modelos y señales existentes, sin generar embeddings ni cargar modelos con esos indicadores apagados. No actives IA para cargar el demo. La ejecución en DataLab y cualquier actualización del contenedor se realizan manualmente; esta tarea solo prepara el comando y sus pruebas.
+
 ## IA opcional, para una etapa posterior
 
 `GET /api/capabilities/` (autenticado) expone `ai_enabled`, `embeddings_enabled` y `rag_available`. Refleja la configuración, no una prueba continua del modelo. Con los valores predeterminados el frontend muestra el asistente en pausa y no permite enviar preguntas. `ask` directo devuelve 503 con `code=ai_disabled`, sin escribir historial. Los errores de proveedor devuelven 503 y no se guardan como respuestas. Importar Django o ejecutar CRUD con embeddings deshabilitados no importa Sentence Transformers ni descarga modelos.

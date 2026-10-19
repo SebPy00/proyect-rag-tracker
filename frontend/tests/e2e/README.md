@@ -42,4 +42,4 @@ No se modifica la autenticación ni los contratos del asistente/API. Las transic
 - `npm run test:e2e`: **4 escenarios aprobados** en Chromium, incluyendo el tipado de las pruebas y mediciones reales del layout. El primer escenario también comprueba que las columnas crezcan sin superar 400 px.
 - Capturas: [ambos abiertos](screenshots/panels-open.png), [ambos cerrados](screenshots/panels-closed.png), [navegación abierta y asistente cerrado](screenshots/sidebar-open-assistant-closed.png), [navegación cerrada y asistente abierto](screenshots/sidebar-closed-assistant-open.png).
 
-La validación se limita al frontend con API simulada y no sustituye la comprobación manual posterior en DataLab. No se modificaron backend, autenticación, permisos ni configuraciones de producción.
+La validación se limita al frontend con API simulada y no sustituye la comprobación manual posterior en DataLab. Las mejoras de paneles no modifican autenticación, permisos ni configuraciones de producción. El comando Django de datos demostrativos del mismo PR se valida por separado con sus pruebas backend.
