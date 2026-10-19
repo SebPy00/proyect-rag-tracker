@@ -1,57 +1,47 @@
+name: rag-tracker-dev
 services:
-  # Servicio del Backend (Django)
-  backend:
-    build: ./backend
-    container_name: backend_service
-    command: python manage.py runserver 0.0.0.0:8000
-    volumes:
-      - ./backend:/app
-    ports: 
-      - "8000:8000"
-    environment:
-      - POSTGRES_NAME=${DB_NAME}
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASS}
-    depends_on:
-      - db
-      - ollama
-
-  # Servicio del Frontend (React)
-  frontend:
-    build: ./frontend
-    container_name: frontend_service
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    ports:
-      - "3000:3000"
-    environment:
-      - CHOKIDAR_USEPOLLING=true
-    stdin_open: true
-    tty: true
-
-  # Servicio de la Base de Datos (PostgreSQL)
   db:
-    image: pgvector/pgvector:pg15
-    container_name: postgres_db
-    volumes:
-      - postgres_data:/var/lib/postgresql/data/
-    ports:
-      - "5433:5432"
+    image: pgvector/pgvector:pg16
     environment:
-      - POSTGRES_DB=${DB_NAME}
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASS}
-
-  # Servicio de Ollama
+      POSTGRES_DB: ${DB_NAME:-project_db}
+      POSTGRES_USER: ${DB_USER:-project_user}
+      POSTGRES_PASSWORD: ${DB_PASS:?Set DB_PASS in .env}
+    volumes: [postgres_dev:/var/lib/postgresql/data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      retries: 10
+  backend:
+    build:
+      context: ./backend
+      args: { INSTALL_AI: '${INSTALL_AI:-false}' }
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes: [./backend:/app]
+    ports: ['127.0.0.1:8000:8000']
+    environment:
+      DEBUG: 'true'
+      POSTGRES_NAME: ${DB_NAME:-project_db}
+      POSTGRES_USER: ${DB_USER:-project_user}
+      POSTGRES_PASSWORD: ${DB_PASS:?Set DB_PASS in .env}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      EMBEDDINGS_ENABLED: ${EMBEDDINGS_ENABLED:-false}
+      CORS_ALLOWED_ORIGINS: http://localhost:3000
+      CSRF_TRUSTED_ORIGINS: http://localhost:3000
+    depends_on:
+      db: { condition: service_healthy }
+  frontend:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c 'npm ci --no-audit --no-fund && npm start'
+    volumes: [./frontend:/app, node_modules:/app/node_modules]
+    ports: ['127.0.0.1:3000:3000']
+    environment:
+      VITE_API_URL: http://localhost:8000
   ollama:
-    image: ollama/ollama
-    container_name: ollama_service
-    volumes:
-      - ollama_data:/root/.ollama
-    ports:
-      - "11434:11434"
-
+    image: ollama/ollama:latest
+    profiles: [ai]
+    volumes: [ollama_dev:/root/.ollama]
 volumes:
-  postgres_data:
-  ollama_data:
+  postgres_dev: {}
+  node_modules: {}
+  ollama_dev: {}

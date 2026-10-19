@@ -7,3 +7,12 @@ __pycache__/
 
 # Archivos de Node
 node_modules/
+# Local configuration and generated outputs
+.env.*
+!.env.example
+.venv/
+frontend/dist/
+frontend/build/
+backend/staticfiles/
+*.dump
+*.sql.gz
