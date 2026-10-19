@@ -55,6 +55,13 @@ test("desktop panels persist independently, recover space and preserve navigatio
     fullPage: true,
   });
   await page.getByRole("button", { name: "Contraer navegación" }).click();
+  // Icons stay in the narrow rail while its outer width is still animating.
+  expect(
+    (await nav(page)
+      .getByRole("link", { name: "Proyectos" })
+      .locator("svg")
+      .boundingBox())!.x,
+  ).toBeLessThan(40);
   await expect(nav(page)).toHaveCSS("width", "64px");
   await expect
     .poll(() => width(kanban(page)))

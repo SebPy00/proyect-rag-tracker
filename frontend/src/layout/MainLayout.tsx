@@ -59,7 +59,13 @@ export default function MainLayout({ children }: { children: ReactNode }) {
     ];
     return (
       <Stack
-        sx={{ height: "100%", p: compact ? 1 : 2.5, overflowX: "hidden" }}
+        sx={{
+          height: "100%",
+          width: "100%",
+          maxWidth: compact ? 64 : undefined,
+          p: compact ? 1 : 2.5,
+          overflowX: "hidden",
+        }}
         spacing={1}
       >
         <Stack
