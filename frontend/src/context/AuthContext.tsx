@@ -1,95 +1,106 @@
-import React, { createContext, useState, useEffect, ReactNode } from 'react';
-import { jwtDecode } from 'jwt-decode';
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { createContext, useState, useEffect, ReactNode } from "react";
+import axios from "axios";
+import api, { baseURL } from "../api/axiosInstance";
+import { readTokens, writeTokens, sessionEvent, Tokens } from "../api/session";
 
-// --- Definimos las estructuras de datos ---
-interface AuthToken {
-  access: string;
-  refresh: string;
+export interface User {
+  id: number;
+  username: string;
+  is_staff: boolean;
+  is_superuser: boolean;
 }
-
-interface User {
-  user_id: number;
-  username: string; 
-  // Puedes añadir más campos que decidas incluir en el payload de tu token JWT
-}
-
-// --- Definimos lo que nuestro contexto va a proveer ---
 interface AuthContextType {
   user: User | null;
-  authTokens: AuthToken | null;
-  loginUser: (e: React.FormEvent) => Promise<void>;
+  authTokens: Tokens | null;
+  loading: boolean;
+  error: string;
+  loginUser: (username: string, password: string) => Promise<void>;
   logoutUser: () => void;
+  retrySession: () => void;
 }
-
-// --- Creamos el Contexto ---
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
 export default AuthContext;
-
-// --- Creamos el "Proveedor" del Contexto ---
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  // Estado para los tokens, inicializado desde localStorage para persistir la sesión
-  const [authTokens, setAuthTokens] = useState<AuthToken | null>(() => 
-    localStorage.getItem('authTokens') ? JSON.parse(localStorage.getItem('authTokens')!) : null
-  );
-  
-  // Estado para el usuario, decodificado desde el token en localStorage
-  const [user, setUser] = useState<User | null>(() => 
-    localStorage.getItem('authTokens') ? jwtDecode(JSON.parse(localStorage.getItem('authTokens')!).access) : null
-  );
-  
-  const navigate = useNavigate();
-
-  // Función para iniciar sesión
-  const loginUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const target = e.target as typeof e.target & {
-        username: { value: string };
-        password: { value: string };
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [authTokens, setAuthTokens] = useState(readTokens);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    const sync = () => {
+      const tokens = readTokens();
+      setAuthTokens(tokens);
+      if (!tokens) setUser(null);
     };
-    const username = target.username.value;
-    const password = target.password.value;
-
-    try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/auth/jwt/create/`, {
-        username,
-        password,
-      });
-
-      const data: AuthToken = response.data;
-      setAuthTokens(data);
-      setUser(jwtDecode(data.access));
-      localStorage.setItem('authTokens', JSON.stringify(data));
-      navigate('/'); // Redirige a la página principal después del login
-    } catch (error) {
-      console.error('Error al iniciar sesión!', error);
-      alert('Usuario o contraseña incorrectos.');
+    const storage = () => {
+      sync();
+      setRetry((value) => value + 1);
+    };
+    window.addEventListener(sessionEvent, sync);
+    window.addEventListener("storage", storage);
+    return () => {
+      window.removeEventListener(sessionEvent, sync);
+      window.removeEventListener("storage", storage);
+    };
+  }, []);
+  useEffect(() => {
+    let active = true;
+    if (!readTokens()) {
+      setLoading(false);
+      return;
     }
-  };
-
-  // Función para cerrar sesión
-  const logoutUser = () => {
-    setAuthTokens(null);
+    setLoading(true);
+    setError("");
+    api
+      .get<User>("/api/me/")
+      .then(({ data }) => {
+        if (active && readTokens()) setUser(data);
+      })
+      .catch(() => {
+        if (active && readTokens())
+          setError("No pudimos verificar tu sesión. Comprueba la conexión.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [retry]);
+  async function loginUser(username: string, password: string) {
+    const { data } = await axios.post(
+      `${baseURL}/auth/jwt/create/`,
+      { username, password },
+      { timeout: 15000 },
+    );
+    writeTokens(data);
+    try {
+      const response = await api.get<User>("/api/me/");
+      setUser(response.data);
+      setError("");
+    } catch (error) {
+      writeTokens(null);
+      throw error;
+    }
+  }
+  function logoutUser() {
+    writeTokens(null);
     setUser(null);
-    localStorage.removeItem('authTokens');
-    window.location.href = '/login'; 
-};
-
-  // Datos que serán accesibles para todos los componentes hijos
-  const contextData = {
-    user,
-    authTokens,
-    loginUser,
-    logoutUser,
-  };
-
-  // Aquí se podría añadir lógica para refrescar el token si expira
-  
+    setError("");
+  }
   return (
-    <AuthContext.Provider value={contextData}>
+    <AuthContext.Provider
+      value={{
+        user,
+        authTokens,
+        loading,
+        error,
+        loginUser,
+        logoutUser,
+        retrySession: () => setRetry((value) => value + 1),
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
-};
+}

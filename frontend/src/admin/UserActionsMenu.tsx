@@ -1,61 +1,43 @@
-// src/admin/UserActionsMenu.tsx
-
 import { IconButton, Menu, MenuItem } from "@mui/material";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
+import MoreHorizRounded from "@mui/icons-material/MoreHorizRounded";
 import { useState } from "react";
-
-interface Props {
-  user: any;
-  onEdit: (user: any) => void;
-  onDelete: (user: any) => void;
-  onToggleActive: (user: any) => void;
-}
-
+import { ManagedUser } from "../api/usersApi";
 export default function UserActionsMenu({
   user,
+  disabled,
   onEdit,
   onDelete,
   onToggleActive,
-}: Props) {
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const open = Boolean(anchorEl);
-
+}: {
+  user: ManagedUser;
+  disabled: boolean;
+  onEdit: (user: ManagedUser) => void;
+  onDelete: (user: ManagedUser) => void;
+  onToggleActive: (user: ManagedUser) => void;
+}) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const action = (callback: (user: ManagedUser) => void) => {
+    setAnchor(null);
+    callback(user);
+  };
   return (
     <>
-      <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}>
-        <MoreVertIcon />
-      </IconButton>
-
-      <Menu
-        anchorEl={anchorEl}
-        open={open}
-        onClose={() => setAnchorEl(null)}
+      <IconButton
+        disabled={disabled}
+        aria-label={`Acciones de ${user.username}`}
+        aria-haspopup="menu"
+        aria-expanded={!!anchor}
+        onClick={(e) => setAnchor(e.currentTarget)}
       >
-        <MenuItem
-          onClick={() => {
-            onEdit(user);
-            setAnchorEl(null);
-          }}
-        >
-          Editar
+        <MoreHorizRounded />
+      </IconButton>
+      <Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)}>
+        <MenuItem onClick={() => action(onEdit)}>Editar</MenuItem>
+        <MenuItem onClick={() => action(onToggleActive)}>
+          {user.is_active ? "Desactivar acceso" : "Activar acceso"}
         </MenuItem>
-
-        <MenuItem
-          onClick={() => {
-            onToggleActive(user);
-            setAnchorEl(null);
-          }}
-        >
-          {user.is_active ? "Desactivar" : "Activar"}
-        </MenuItem>
-
-        <MenuItem
-          onClick={() => {
-            onDelete(user);
-            setAnchorEl(null);
-          }}
-        >
-          Eliminar
+        <MenuItem sx={{ color: "error.main" }} onClick={() => action(onDelete)}>
+          Eliminar usuario
         </MenuItem>
       </Menu>
     </>

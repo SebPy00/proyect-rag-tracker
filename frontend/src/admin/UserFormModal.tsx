@@ -1,86 +1,126 @@
-// src/admin/UserFormModal.tsx
-
-import { useState, useEffect } from "react";
+import { FormEvent, useContext, useState } from "react";
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  TextField,
-  DialogActions,
+  Alert,
+  Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControlLabel,
+  Stack,
+  Switch,
+  TextField,
 } from "@mui/material";
-import { createUser, updateUser } from "../api/usersApi";
-
-interface UserFormModalProps {
-  open: boolean;
-  onClose: () => void;
-  user: any | null;
-  refresh: () => void;
-}
-
+import { createUser, updateUser, ManagedUser } from "../api/usersApi";
+import AuthContext from "../context/AuthContext";
+import { useFeedback } from "../components/Feedback";
 export default function UserFormModal({
-  open,
   onClose,
   user,
   refresh,
-}: UserFormModalProps) {
-  const [form, setForm] = useState({
-    username: "",
-    password: "",
-  });
-
-  useEffect(() => {
-    setForm({
-      username: user?.username || "",
-      password: "",
-    });
-  }, [user]);
-
-  const handleChange = (e: any) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async () => {
-    if (user) await updateUser(user.id, form);
-    else await createUser(form);
-
-    refresh();
-    onClose();
-  };
-
+}: {
+  onClose: () => void;
+  user: ManagedUser | null;
+  refresh: () => Promise<void>;
+}) {
+  const auth = useContext(AuthContext)!;
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [staff, setStaff] = useState(user?.is_staff || false);
+  const notify = useFeedback();
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const password = String(form.get("password") || "");
+    const data = {
+      username: String(form.get("username")).trim(),
+      ...(password ? { password } : {}),
+      ...(auth.user?.is_superuser ? { is_staff: staff } : {}),
+    };
+    setBusy(true);
+    setError("");
+    try {
+      if (user) await updateUser(user.id, data);
+      else await createUser(data);
+      await refresh();
+      notify(user ? "Usuario actualizado" : "Usuario creado");
+      onClose();
+    } catch (error: unknown) {
+      const data = (error as { response?: { data?: Record<string, unknown> } })
+        .response?.data;
+      setError(
+        data
+          ? Object.entries(data)
+              .map(
+                ([key, value]) =>
+                  `${key}: ${Array.isArray(value) ? value.join(" ") : value}`,
+              )
+              .join(" · ")
+          : "No pudimos guardar el usuario. Comprueba la conexión.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
-    <Dialog open={open} onClose={onClose}>
-      <DialogTitle>
-        {user ? "Editar Usuario" : "Crear Usuario"}
-      </DialogTitle>
-
-      <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <TextField
-          label="Usuario"
-          name="username"
-          value={form.username}
-          onChange={handleChange}
-          fullWidth
-        />
-
-        {!user && (
-          <TextField
-            label="Contraseña"
-            name="password"
-            type="password"
-            value={form.password}
-            onChange={handleChange}
-            fullWidth
-          />
-        )}
-      </DialogContent>
-
-      <DialogActions>
-        <Button onClick={onClose}>Cancelar</Button>
-        <Button variant="contained" onClick={handleSubmit}>
-          Guardar
-        </Button>
-      </DialogActions>
+    <Dialog
+      open
+      onClose={busy ? undefined : onClose}
+      fullWidth
+      maxWidth="xs"
+      aria-labelledby="user-title"
+    >
+      <Box component="form" onSubmit={submit}>
+        <DialogTitle id="user-title">
+          {user ? "Editar usuario" : "Invitar al workspace"}
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2.5} sx={{ pt: 1 }}>
+            {error && <Alert severity="error">{error}</Alert>}
+            <TextField
+              required
+              autoFocus
+              label="Nombre de usuario"
+              name="username"
+              defaultValue={user?.username || ""}
+              disabled={busy}
+              inputProps={{ maxLength: 150 }}
+            />
+            <TextField
+              label={
+                user ? "Nueva contraseña (opcional)" : "Contraseña inicial"
+              }
+              name="password"
+              type="password"
+              required={!user}
+              autoComplete="new-password"
+              disabled={busy}
+              helperText="Usa una contraseña larga y única. Compártela por un canal seguro."
+            />
+            {auth.user?.is_superuser && (
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={staff}
+                    onChange={(e) => setStaff(e.target.checked)}
+                    disabled={busy || user?.id === auth.user.id}
+                  />
+                }
+                label="Acceso a administración de usuarios"
+              />
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={busy} onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button variant="contained" type="submit" disabled={busy}>
+            {busy ? "Guardando…" : "Guardar usuario"}
+          </Button>
+        </DialogActions>
+      </Box>
     </Dialog>
   );
 }

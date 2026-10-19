@@ -1,59 +1,70 @@
-import axios from 'axios';
-import { jwtDecode } from 'jwt-decode';
-import dayjs from 'dayjs';
+import axios from "axios";
+import { accessExpired, readTokens, writeTokens } from "./session";
 
-const baseURL = process.env.REACT_APP_API_URL;
+export const baseURL = import.meta.env.VITE_API_URL || "";
+const api = axios.create({ baseURL, timeout: 200000 });
+let refreshRequest: Promise<string> | null = null;
 
-interface User { exp?: number; }
-interface AuthToken { access: string; refresh: string; }
-
-const axiosInstance = axios.create({
-    baseURL,
-});
-
-axiosInstance.interceptors.request.use(async req => {
-    let authTokens: AuthToken | null = localStorage.getItem('authTokens') ? JSON.parse(localStorage.getItem('authTokens')!) : null;
-
-    if (!authTokens) {
-        return req;
+export function refreshAccess(): Promise<string> {
+  if (!refreshRequest) {
+    const tokens = readTokens();
+    if (!tokens) {
+      writeTokens(null);
+      return Promise.reject(new Error("Sesión finalizada"));
     }
-
-    const user: User = jwtDecode(authTokens.access);
-    const isExpired = dayjs.unix(user.exp!).diff(dayjs()) < 1;
-
-    if (!isExpired) {
-        req.headers.Authorization = `Bearer ${authTokens.access}`;
-        return req;
-    }
-
-    try {
-        const response = await axios.post(`${baseURL}/auth/jwt/refresh/`, {
-            refresh: authTokens.refresh
+    refreshRequest = axios
+      .post(
+        `${baseURL}/auth/jwt/refresh/`,
+        { refresh: tokens.refresh },
+        { timeout: 15000 },
+      )
+      .then(({ data }) => {
+        // Do not restore a session if the user logged out while refreshing.
+        if (readTokens()?.refresh !== tokens.refresh)
+          throw new Error("Sesión finalizada");
+        writeTokens({
+          access: data.access,
+          refresh: data.refresh || tokens.refresh,
         });
-        localStorage.setItem('authTokens', JSON.stringify(response.data));
-        req.headers.Authorization = `Bearer ${response.data.access}`;
-        return req;
-    } catch (error) {
-        console.log("Refresh token fallido. Deslogueando.", error);
-        localStorage.removeItem('authTokens');
-        window.location.href = '/login';
-    }
+        return data.access as string;
+      })
+      .catch((error) => {
+        if (
+          [400, 401].includes(error.response?.status) &&
+          readTokens()?.refresh === tokens.refresh
+        )
+          writeTokens(null);
+        throw error;
+      })
+      .finally(() => {
+        refreshRequest = null;
+      });
+  }
+  return refreshRequest;
+}
 
-    return req;
+api.interceptors.request.use(async (config) => {
+  const tokens = readTokens();
+  if (tokens)
+    config.headers.Authorization = `Bearer ${accessExpired(tokens.access) ? await refreshAccess() : tokens.access}`;
+  return config;
 });
-
-
-axiosInstance.interceptors.response.use(
-    response => response,
-    error => {
-        if (error.response && error.response.status === 401) {
-            console.log("Respuesta 401 recibida. Deslogueando.");
-            localStorage.removeItem('authTokens');
-            window.location.href = '/login';
-        }
-        return Promise.reject(error);
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const config = error.config;
+    if (
+      error.response?.status === 401 &&
+      config &&
+      !config._retried &&
+      readTokens()
+    ) {
+      config._retried = true;
+      config.headers.Authorization = `Bearer ${await refreshAccess()}`;
+      return api(config);
     }
+    if (error.response?.status === 401) writeTokens(null);
+    return Promise.reject(error);
+  },
 );
-
-
-export default axiosInstance;
+export default api;

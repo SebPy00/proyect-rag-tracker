@@ -1,62 +1,47 @@
-// src/theme.ts
 import { createTheme } from "@mui/material/styles";
-
 const theme = createTheme({
   palette: {
-    mode: "light",
-    primary: {
-      main: "#1E88E5",
-      dark: "#1565C0",
-      light: "#90CAF9",
-    },
-    secondary: {
-      main: "#F5B971",  // un beige más cálido para acentos
-      light: "#F5E9DA",
-      dark: "#E08A3D",
-    },
-    background: {
-      default: "#F5F5F7", // fondo general
-      paper: "#FFFFFF",   // tarjetas / paneles
-    },
-    text: {
-      primary: "#1F2933",
-      secondary: "#6B7280",
-    },
+    primary: { main: "#4f46e5", light: "#eeedff", dark: "#3730a3" },
+    secondary: { main: "#0f766e" },
+    background: { default: "#f6f7fb", paper: "#ffffff" },
+    text: { primary: "#17233b", secondary: "#64748b" },
+    divider: "#e5e9f2",
   },
   typography: {
-    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-    h4: {
-      fontWeight: 600,
-    },
-    h6: {
-      fontWeight: 500,
-    },
-    body1: {
-      fontSize: "0.95rem",
-    },
+    fontFamily:
+      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    h4: { fontSize: "1.8rem", fontWeight: 750, letterSpacing: "-0.04em" },
+    h5: { fontSize: "1.3rem", fontWeight: 700, letterSpacing: "-0.025em" },
+    h6: { fontSize: "1rem", fontWeight: 700 },
+    body1: { fontSize: ".94rem" },
+    button: { textTransform: "none", fontWeight: 600 },
   },
-  shape: {
-    borderRadius: 12,
-  },
+  shape: { borderRadius: 12 },
   components: {
-    MuiCard: {
+    MuiButton: {
+      defaultProps: { disableElevation: true },
+      styleOverrides: { root: { borderRadius: 8, minHeight: 38 } },
+    },
+    MuiPaper: {
+      defaultProps: { elevation: 0 },
+      styleOverrides: { outlined: { borderColor: "#e5e9f2" } },
+    },
+    MuiTextField: { defaultProps: { size: "small" } },
+    MuiDialog: { styleOverrides: { paper: { borderRadius: 16 } } },
+    MuiDialogActions: {
+      styleOverrides: { root: { padding: "16px 24px", gap: 8 } },
+    },
+    MuiTableCell: {
       styleOverrides: {
-        root: {
-          borderRadius: 16,
-          boxShadow: "0 10px 25px rgba(15, 23, 42, 0.08)",
-        },
+        head: { color: "#64748b", background: "#f8fafc", fontWeight: 600 },
       },
     },
-    MuiButton: {
+    MuiCssBaseline: {
       styleOverrides: {
-        root: {
-          textTransform: "none",
-          borderRadius: 999,
-          paddingInline: 20,
-        },
+        "*:focus-visible": { outline: "3px solid #818cf8", outlineOffset: 3 },
+        "::selection": { background: "#ddd6fe" },
       },
     },
   },
 });
-
 export default theme;

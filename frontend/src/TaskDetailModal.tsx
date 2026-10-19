@@ -1,90 +1,106 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Button, Modal, TextField, Typography } from '@mui/material';
-
-// Reutilizamos la interfaz 'Task' que ya tenemos en ProjectBoard
-// (En un proyecto más grande, moveríamos esto a un archivo de tipos compartido)
-interface Task {
-  id: string;
-  title: string;
-  description: string | null;
-  order: number;
-}
-
-// Definimos qué 'props' recibirá nuestro componente modal
-interface TaskDetailModalProps {
-  task: Task;
+import { FormEvent, useState } from "react";
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Stack,
+  TextField,
+  Typography,
+  MenuItem,
+} from "@mui/material";
+import { Task, Column } from "./board/types";
+export default function TaskDetailModal({
+  task,
+  columns,
+  busy,
+  onClose,
+  onSave,
+}: {
+  task?: Task;
+  columns: Column[];
+  busy: boolean;
   onClose: () => void;
-  onSave: (updatedTask: { title: string; description: string | null }) => void;
-}
-
-// Estilos para la caja del modal (para centrarlo y darle apariencia)
-const style = {
-  position: 'absolute' as 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  width: 400,
-  bgcolor: 'background.paper',
-  border: '2px solid #000',
-  boxShadow: 24,
-  p: 4,
-};
-
-function TaskDetailModal({ task, onClose, onSave }: TaskDetailModalProps) {
-  // Estados internos para manejar los cambios en el formulario
-  const [editedTitle, setEditedTitle] = useState(task.title);
-  const [editedDescription, setEditedDescription] = useState(task.description || '');
-
-  // Sincroniza el estado si la tarea seleccionada cambia
-  useEffect(() => {
-    setEditedTitle(task.title);
-    setEditedDescription(task.description || '');
-  }, [task]);
-
-  const handleSave = () => {
-    onSave({
-      title: editedTitle,
-      description: editedDescription,
-    });
-  };
-
+  onSave: (data: {
+    title: string;
+    description: string;
+    column: string;
+  }) => void;
+}) {
+  const [title, setTitle] = useState(task?.title || "");
+  const [description, setDescription] = useState(task?.description || "");
+  const [column, setColumn] = useState(task?.column || columns[0]?.id || "");
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (title.trim() && column)
+      onSave({ title: title.trim(), description, column });
+  }
   return (
-    <Modal
-      open={true} // El modal es visible si se renderiza
-      onClose={onClose} // Función que se llama al hacer clic fuera del modal
-      aria-labelledby="modal-modal-title"
-      aria-describedby="modal-modal-description"
+    <Dialog
+      open
+      onClose={busy ? undefined : onClose}
+      fullWidth
+      maxWidth="sm"
+      aria-labelledby="task-title"
     >
-      <Box sx={style}>
-        <Typography id="modal-modal-title" variant="h6" component="h2">
-          Editar Tarea
-        </Typography>
-        <TextField
-          margin="normal"
-          required
-          fullWidth
-          label="Título de la Tarea"
-          value={editedTitle}
-          onChange={(e) => setEditedTitle(e.target.value)}
-        />
-        <TextField
-          margin="normal"
-          fullWidth
-          label="Descripción"
-          multiline
-          rows={4}
-          value={editedDescription}
-          onChange={(e) => setEditedDescription(e.target.value)}
-        />
-        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-          <Button onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSave} variant="contained" sx={{ ml: 1 }}>
-            Guardar
+      <Box component="form" onSubmit={submit}>
+        <DialogTitle id="task-title">
+          {task ? "Detalle de la tarea" : "Nueva tarea"}
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Cada pequeño paso cuenta.
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2.5} sx={{ pt: 1 }}>
+            <TextField
+              autoFocus
+              required
+              fullWidth
+              label="Título"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              inputProps={{ maxLength: 200 }}
+              disabled={busy}
+            />
+            <TextField
+              label="Descripción"
+              multiline
+              minRows={5}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={busy}
+              placeholder="Añade contexto, detalles o próximos pasos…"
+            />
+            <TextField
+              select
+              label="Columna"
+              value={column}
+              onChange={(e) => setColumn(e.target.value)}
+              disabled={busy}
+            >
+              {columns.map((c) => (
+                <MenuItem key={c.id} value={c.id}>
+                  {c.title}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose} disabled={busy}>
+            Cancelar
           </Button>
-        </Box>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={busy || !title.trim()}
+          >
+            {busy ? "Guardando…" : "Guardar tarea"}
+          </Button>
+        </DialogActions>
       </Box>
-    </Modal>
+    </Dialog>
   );
 }
-
-export default TaskDetailModal;

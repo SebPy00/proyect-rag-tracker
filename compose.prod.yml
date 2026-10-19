@@ -1,0 +1,113 @@
+# Always invoke with -p rag-tracker-prod so volumes/networks cannot collide with other projects.
+name: rag-tracker-prod
+x-backend-env: &backend-env
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Set a unique secret key}
+  DEBUG: 'false'
+  ALLOWED_HOSTS: ${ALLOWED_HOSTS:?Set the application hostname}
+  POSTGRES_NAME: ${DB_NAME:-rag_tracker}
+  POSTGRES_USER: ${DB_USER:-rag_tracker}
+  POSTGRES_PASSWORD: ${DB_PASS:?Set a unique database password}
+  POSTGRES_HOST: db
+  POSTGRES_PORT: '5432'
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+  CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:?Set https origin}
+  TRUST_PROXY_HEADERS: 'true'
+  SECURE_SSL_REDIRECT: 'true'
+  SECURE_HSTS_SECONDS: ${SECURE_HSTS_SECONDS:-0}
+  SECURE_HSTS_INCLUDE_SUBDOMAINS: ${SECURE_HSTS_INCLUDE_SUBDOMAINS:-false}
+  SECURE_HSTS_PRELOAD: ${SECURE_HSTS_PRELOAD:-false}
+  AI_ENABLED: ${AI_ENABLED:-false}
+  EMBEDDINGS_ENABLED: ${EMBEDDINGS_ENABLED:-false}
+  OLLAMA_URL: http://ollama:11434
+  OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:1b}
+  OLLAMA_TIMEOUT: '120'
+  EMBEDDING_MODEL: ${EMBEDDING_MODEL:-all-MiniLM-L6-v2}
+  HF_HOME: /home/app/.cache/huggingface
+  OMP_NUM_THREADS: '2'
+  TOKENIZERS_PARALLELISM: 'false'
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-rag_tracker}
+      POSTGRES_USER: ${DB_USER:-rag_tracker}
+      POSTGRES_PASSWORD: ${DB_PASS:?Set a unique database password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 1g
+    cpus: 1.0
+    shm_size: 128mb
+    logging: &logging
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+  backend:
+    build:
+      context: ./backend
+      args:
+        INSTALL_AI: ${INSTALL_AI:-false}
+    restart: unless-stopped
+    environment: *backend-env
+    depends_on:
+      db: { condition: service_healthy }
+    networks: [data, app]
+    volumes:
+      - embedding_cache:/home/app/.cache/huggingface
+    healthcheck:
+      test: ['CMD', 'python', '-c', 'import urllib.request; urllib.request.urlopen(urllib.request.Request("http://localhost:8000/api/health/", headers={"Host": "localhost", "X-Forwarded-Proto": "https"}), timeout=5)']
+      interval: 15s
+      timeout: 10s
+      start_period: 20s
+      retries: 5
+    mem_limit: 1g
+    cpus: 1.5
+    init: true
+    security_opt: ['no-new-privileges:true']
+    cap_drop: [ALL]
+    logging: *logging
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      backend: { condition: service_healthy }
+    ports:
+      - '127.0.0.1:${APP_PORT:-8095}:8080'
+    networks: [app]
+    healthcheck:
+      test: ['CMD', 'wget', '-Y', 'off', '-q', '-O', '/dev/null', 'http://127.0.0.1:8080/healthz']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    mem_limit: 128m
+    cpus: 0.5
+    security_opt: ['no-new-privileges:true']
+    cap_drop: [ALL]
+    logging: *logging
+  ollama:
+    image: ollama/ollama:latest
+    profiles: [ai]
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    networks: [app]
+    mem_limit: 3g
+    cpus: 2.0
+    healthcheck:
+      test: ['CMD', 'ollama', 'list']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    logging: *logging
+networks:
+  data: { internal: true }
+  app: {}
+volumes:
+  postgres_data: {}
+  ollama_data: {}
+  embedding_cache: {}
