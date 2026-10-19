@@ -25,4 +25,4 @@ En reposo después del smoke, se observaron aproximadamente 130 MiB para backend
 - La ejecución de IA habilitada no se validó con modelos reales. El flujo inicial no depende de sus dominios, descargas ni recursos. Los tests de error del proveedor usan mocks.
 - El dominio, certificados HTTPS, puertos disponibles, cargas existentes y capacidad efectiva de DataLab deben verificarse durante la instalación manual. La prueba local usa el encabezado de protocolo para simular el proxy HTTPS de confianza.
 - JWT permanece en localStorage; el refresh no se revoca al cerrar sesión. El README describe este límite y el alcance de una futura migración a cookies HttpOnly.
-- El workflow de GitHub Actions se agregó, pero no se afirma que haya ejecutado remotamente. La creación del PR requiere acceso a `api.github.com`, bloqueado por el proxy del entorno durante esta tarea.
+- El workflow de GitHub Actions se agregó. Su ejecución remota debe consultarse en el [PR #1](https://github.com/SebPy00/proyect-rag-tracker/pull/1); las comprobaciones enumeradas arriba se ejecutaron localmente.
