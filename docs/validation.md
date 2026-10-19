@@ -8,7 +8,7 @@ Pruebas locales en un entorno aislado, sin despliegue en DataLab ni cambios en s
 - `npm test`: **11 pruebas** en tres archivos, todas aprobadas (sesión/renovación concurrente/salida durante refresh, login, rutas restringidas, asistente deshabilitado y sin respuestas falsas, movimientos de tareas/columnas).
 - `npm run build`: TypeScript y Vite aprobados. Las vistas de tablero y administración se cargan por separado.
 - `python manage.py test api --noinput`: **14 pruebas**, aprobadas tanto en el flujo backend como contra la instancia PostgreSQL 16/pgvector del Compose de producción. Cobertura de permisos, CRUD, propietarios, validación de padres, reordenamiento atómico y rechazo de layouts obsoletos, autenticación y flags de IA.
-- `python manage.py check --deploy --fail-level WARNING`: aprobado sin advertencias con configuración de producción.
+- Ajuste LAN de HSTS: `check --deploy` informa únicamente `security.W004` con los valores iniciales `0/false/false`, deliberadamente sin silenciarla. La redirección HTTP a HTTPS sigue devolviendo 301. Se verificaron en contenedores los valores y encabezados con HSTS apagado y con activación explícita. `check --deploy --fail-level WARNING` pasa con el perfil hipotético de CI que activa expresamente las tres opciones HSTS; no es el perfil inicial de despliegue.
 - `python manage.py makemigrations --check --dry-run`: no hay cambios de esquema pendientes.
 - `docker compose ... -f compose.prod.yml config --quiet`: aprobado con variables locales de prueba.
 - Imágenes de producción construidas; migraciones aplicadas sobre una base nueva. PostgreSQL 16, Gunicorn y Nginx saludables. Ningún servicio Ollama en ejecución o requerido.

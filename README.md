@@ -54,10 +54,12 @@ dc up -d db
 # No arrancar la aplicación antes de que terminen las migraciones.
 dc run --rm backend python manage.py migrate --noinput
 dc run --rm backend python manage.py createsuperuser
-dc run --rm backend python manage.py check --deploy --fail-level WARNING
+dc run --rm backend python manage.py check --deploy
 dc up -d backend frontend
 dc ps
 ```
+
+Con los valores iniciales de HSTS, `check --deploy` informa `security.W004` porque `SECURE_HSTS_SECONDS=0`. Es una advertencia esperada y deliberada para esta etapa LAN; no se silencia ni justifica deshabilitar HTTPS. Un control con `--fail-level WARNING` la tratará como fallo. Si habilitas un período positivo manteniendo las otras opciones en `false`, Django también puede emitir `security.W005` y `security.W021`: no actives subdominios ni preload solo para silenciarlas. Revisa cualquier otra advertencia antes de continuar. CI comprueba la política LAN y, por separado, un perfil hipotético con todas las opciones HSTS activadas explícitamente para conservar el control estricto de las demás advertencias; ese perfil de prueba no cambia los valores de despliegue.
 
 Los archivos estáticos de Django se recogen al construir la imagen y WhiteNoise los sirve sin un volumen adicional. Gunicorn usa dos workers y dos threads. No se ejecutan migraciones automáticamente al arrancar workers: ejecútalas una sola vez, con backup y en ventana de mantenimiento cuando haya cambios de esquema. La imagen normal no instala `torch` ni `sentence-transformers`.
 
@@ -65,7 +67,9 @@ Los archivos estáticos de Django se recogen al construir la imagen y WhiteNoise
 
 Adapta [deploy/nginx-host.conf.example](deploy/nginx-host.conf.example) al Nginx **existente** del host: DNS local de DataLab, certificado confiable para sus clientes y puerto `APP_PORT`. Comprueba `sudo nginx -t` antes de recargar. Mantén el puerto de la aplicación ligado a loopback. Si Nginx del host está en otro contenedor, `127.0.0.1` no apunta al host: configura explícitamente una conexión privada y de confianza; no publiques el backend o la base de datos para resolverlo.
 
-El proxy del host sobrescribe `X-Forwarded-Proto` y el Nginx interno lo reenvía. Django confía en ese encabezado solo con `TRUST_PROXY_HEADERS=true`. Esto exige que los clientes no puedan alcanzar directamente Gunicorn ni el Nginx interno. `DEBUG=false`, cookies seguras, redirección HTTPS, HSTS, protección de framing y CORS cerrado son los valores de producción. El dominio debe disponer de HTTPS antes de habilitar HSTS; solo uses `SECURE_HSTS_SECONDS=0` durante una preparación controlada.
+El proxy del host sobrescribe `X-Forwarded-Proto` y el Nginx interno lo reenvía. Django confía en ese encabezado solo con `TRUST_PROXY_HEADERS=true`. Esto exige que los clientes no puedan alcanzar directamente Gunicorn ni el Nginx interno. `DEBUG=false`, cookies seguras, redirección HTTPS, protección de framing y CORS cerrado son los valores de producción. **HTTPS continúa siendo obligatorio**: no deshabilites `SECURE_SSL_REDIRECT`.
+
+Para el despliegue inicial en la LAN, HSTS queda deshabilitado con `SECURE_HSTS_SECONDS=0`, `SECURE_HSTS_INCLUDE_SUBDOMAINS=false` y `SECURE_HSTS_PRELOAD=false`. Antes de habilitarlo explícitamente, verifica que los certificados internos y su cadena sean confiables para todos los clientes, que los dominios previstos resuelvan correctamente y que las políticas de acceso garanticen HTTPS durante todo el período elegido. Después puedes configurar un `SECURE_HSTS_SECONDS` positivo en `.env.prod`. Mantén las otras dos opciones en `false` salvo que se haya verificado HTTPS para todos los subdominios y exista una decisión expresa sobre preload; no solicites la inclusión del dominio LAN en listas de preload públicas. Revisa también el Nginx existente: un encabezado `Strict-Transport-Security` añadido allí seguiría habilitando HSTS aunque Django lo tenga desactivado.
 
 Validaciones (no basta con contenedores arrancados):
 
@@ -140,7 +144,7 @@ pip install -r requirements.txt
 python manage.py test
 python manage.py check
 # En configuración HTTPS de producción:
-python manage.py check --deploy --fail-level WARNING
+python manage.py check --deploy
 
 cd ../frontend
 npm ci
@@ -166,8 +170,8 @@ Más detalles: [arquitectura](docs/architecture.md), [RAG](docs/rag-pipeline.md)
 | `CORS_ALLOWED_ORIGINS` | Vacío en producción con el mismo origen; lista explícita si se necesita. |
 | `TRUST_PROXY_HEADERS` | Solo detrás de un proxy confiable que sobrescribe el protocolo. Compose de producción: `true`. |
 | `SECURE_SSL_REDIRECT` | `true` fuera de DEBUG. |
-| `SECURE_HSTS_SECONDS` | `31536000` en producción; evaluar dominio/certificados antes de habilitar. |
-| `SECURE_HSTS_INCLUDE_SUBDOMAINS`, `SECURE_HSTS_PRELOAD` | Activados fuera de DEBUG; ajustar conscientemente a la política HTTPS del dominio. |
+| `SECURE_HSTS_SECONDS` | `0` para el despliegue inicial en LAN; habilitar con un valor positivo solo tras verificar certificados, dominios y políticas HTTPS. |
+| `SECURE_HSTS_INCLUDE_SUBDOMAINS`, `SECURE_HSTS_PRELOAD` | Ambos `false`, incluso fuera de DEBUG; requieren activación explícita y verificación de su alcance. |
 | `AI_ENABLED`, `EMBEDDINGS_ENABLED` | Ambos `false` al inicio. RAG requiere ambos `true`. |
 | `INSTALL_AI` | Argumento de build `false`; instala dependencias CPU opcionales si `true`. |
 | `EMBEDDING_MODEL` | `all-MiniLM-L6-v2`, 384 dimensiones. |
