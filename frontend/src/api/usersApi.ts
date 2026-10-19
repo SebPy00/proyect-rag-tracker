@@ -1,22 +1,21 @@
-// src/api/usersApi.ts
-import axios from "./axiosInstance";
-
-export const getUsers = async () => {
-  const res = await axios.get("/api/users/");
-  return res.data;   // <--- 🔥 SOLO los datos
-};
-
-export const createUser = async (user: any) => {
-  const res = await axios.post("/api/users/", user);
-  return res.data;
-};
-
-export const updateUser = async (id: number, user: any) => {
-  const res = await axios.patch(`/api/users/${id}/`, user);
-  return res.data;
-};
-
-export const deleteUser = async (id: number) => {
-  const res = await axios.delete(`/api/users/${id}/`);
-  return res.data;
-};
+import api from "./axiosInstance";
+export interface ManagedUser {
+  id: number;
+  username: string;
+  is_active: boolean;
+  is_staff: boolean;
+  is_superuser: boolean;
+}
+export interface UserInput {
+  username?: string;
+  password?: string;
+  is_active?: boolean;
+  is_staff?: boolean;
+}
+export const getUsers = async () =>
+  (await api.get<ManagedUser[]>("/api/users/")).data;
+export const createUser = async (data: UserInput) =>
+  (await api.post<ManagedUser>("/api/users/", data)).data;
+export const updateUser = async (id: number, data: UserInput) =>
+  (await api.patch<ManagedUser>(`/api/users/${id}/`, data)).data;
+export const deleteUser = async (id: number) => api.delete(`/api/users/${id}/`);

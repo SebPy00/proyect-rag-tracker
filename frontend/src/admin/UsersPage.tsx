@@ -1,75 +1,121 @@
-import { useEffect, useState } from "react";
-import { Box, Button, Typography } from "@mui/material";
+import { useCallback, useEffect, useState } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  InputAdornment,
+  Skeleton,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
+import PersonAddOutlined from "@mui/icons-material/PersonAddOutlined";
+import SearchRounded from "@mui/icons-material/SearchRounded";
 import UsersTable from "./UsersTable";
 import UserFormModal from "./UserFormModal";
-import { getUsers } from "../api/usersApi";
-import { Link as RouterLink } from "react-router-dom";
-
+import { getUsers, ManagedUser } from "../api/usersApi";
 export default function UsersPage() {
-  const [users, setUsers] = useState<any[]>([]);
-  const [openModal, setOpenModal] = useState(false);
-  const [editingUser, setEditingUser] = useState<any | null>(null);
-
-  const loadUsers = async () => {
-    const data = await getUsers();
-    setUsers(data);
-  };
-
-  useEffect(() => {
-    loadUsers();
+  const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [dialog, setDialog] = useState<{ user: ManagedUser | null } | null>(
+    null,
+  );
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const load = useCallback(async () => {
+    setUsers(await getUsers());
+    setError("");
   }, []);
-
-  const handleEdit = (user: any) => {
-    setEditingUser(user);
-    setOpenModal(true);
-  };
-
-  const handleCreate = () => {
-    setEditingUser(null);
-    setOpenModal(true);
-  };
-
+  const reload = useCallback(async () => {
+    setLoading(true);
+    try {
+      await load();
+    } catch {
+      setError("No pudimos cargar los usuarios.");
+    } finally {
+      setLoading(false);
+    }
+  }, [load]);
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+  const filtered = users.filter((u) =>
+    u.username.toLowerCase().includes(query.toLowerCase()),
+  );
   return (
-    <Box sx={{ p: 4 }}>
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          mb: 3,
-          alignItems: "center"
-        }}
+    <>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        justifyContent="space-between"
+        gap={2}
+        sx={{ mb: 4 }}
       >
-        <Typography variant="h4" sx={{ fontWeight: 600 }}>
-          Administración de Usuarios
-        </Typography>
-
+        <Box>
+          <Typography variant="overline" color="text.secondary">
+            Workspace / Administración
+          </Typography>
+          <Typography variant="h4" component="h1">
+            Personas y acceso
+          </Typography>
+          <Typography color="text.secondary" sx={{ mt: 1 }}>
+            Gestiona quién puede acceder a este espacio de trabajo.
+          </Typography>
+        </Box>
         <Button
-          variant="outlined"
-          color="primary"
-          component={RouterLink}
-          to="/"
-          sx={{ borderRadius: 2 }}
+          variant="contained"
+          startIcon={<PersonAddOutlined />}
+          onClick={() => setDialog({ user: null })}
+          sx={{ alignSelf: "flex-start", mt: { sm: 3 } }}
         >
-          ← Volver a Tableros
+          Crear usuario
         </Button>
-      </Box>
-
-      <Button
-        variant="contained"
-        onClick={handleCreate}
-        sx={{ mb: 2, borderRadius: 2 }}
-      >
-        Crear Usuario
-      </Button>
-
-      <UsersTable users={users} onEdit={handleEdit} onChange={loadUsers} />
-
-      <UserFormModal
-        open={openModal}
-        onClose={() => setOpenModal(false)}
-        user={editingUser}
-        refresh={loadUsers}
+      </Stack>
+      <TextField
+        label="Buscar usuarios"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        sx={{ mb: 3 }}
+        slotProps={{
+          input: {
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchRounded fontSize="small" />
+              </InputAdornment>
+            ),
+          },
+        }}
       />
-    </Box>
+      {error && (
+        <Alert
+          severity="error"
+          action={<Button onClick={reload}>Reintentar</Button>}
+          sx={{ mb: 2 }}
+        >
+          {error}
+        </Alert>
+      )}
+      {loading ? (
+        <Skeleton variant="rounded" height={260} />
+      ) : (
+        <UsersTable
+          users={filtered}
+          onEdit={(user) => setDialog({ user })}
+          onChange={load}
+        />
+      )}
+      {!loading && !filtered.length && (
+        <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
+          No se encontraron usuarios.
+        </Typography>
+      )}
+      {dialog && (
+        <UserFormModal
+          key={dialog.user?.id || "new"}
+          onClose={() => setDialog(null)}
+          user={dialog.user}
+          refresh={load}
+        />
+      )}
+    </>
   );
 }
