@@ -49,7 +49,8 @@ export default function ColumnPanel({
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       sx={{
-        flex: "0 0 300px",
+        flex: "1 0 300px",
+        maxWidth: 400,
         width: 300,
         p: 1.5,
         bgcolor: isOver ? "primary.light" : "#eef1f7",

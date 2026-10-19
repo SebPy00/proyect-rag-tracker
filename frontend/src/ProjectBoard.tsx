@@ -5,6 +5,8 @@ import {
   Box,
   Button,
   Chip,
+  IconButton,
+  Tooltip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -16,6 +18,8 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import AutoAwesomeOutlined from "@mui/icons-material/AutoAwesomeOutlined";
+import { useStoredBoolean } from "./hooks/useStoredBoolean";
 import AddRounded from "@mui/icons-material/AddRounded";
 import EditOutlined from "@mui/icons-material/EditOutlined";
 import ArrowBackRounded from "@mui/icons-material/ArrowBackRounded";
@@ -61,6 +65,11 @@ const collision: CollisionDetection = (args) => {
 };
 export default function ProjectBoard() {
   const { projectId } = useParams();
+  const [assistantExpanded, setAssistantExpanded] = useStoredBoolean(
+    "tracker.assistant-expanded",
+    false,
+  );
+  const [assistantMounted, setAssistantMounted] = useState(assistantExpanded);
   const { project, loading, error, busy, reload, mutate, reorder } =
     useProject(projectId);
   const [taskDialog, setTaskDialog] = useState<{
@@ -185,6 +194,26 @@ export default function ProjectBoard() {
           flexWrap="wrap"
           alignItems="center"
         >
+          <Tooltip
+            title={
+              assistantExpanded ? "Ocultar asistente" : "Mostrar asistente"
+            }
+          >
+            <IconButton
+              aria-label={
+                assistantExpanded ? "Ocultar asistente" : "Mostrar asistente"
+              }
+              aria-expanded={assistantExpanded}
+              aria-controls="project-assistant"
+              onClick={() => {
+                setAssistantMounted(true);
+                setAssistantExpanded((value) => !value);
+              }}
+              color={assistantExpanded ? "primary" : "default"}
+            >
+              <AutoAwesomeOutlined />
+            </IconButton>
+          </Tooltip>
           <Button
             startIcon={<EditOutlined />}
             disabled={busy}
@@ -214,10 +243,18 @@ export default function ProjectBoard() {
           display: "grid",
           gridTemplateColumns: {
             xs: "minmax(0, 1fr)",
-            lg: "minmax(0, 1fr) 320px",
+            lg: assistantExpanded
+              ? "minmax(0, 1fr) 320px"
+              : "minmax(0, 1fr) 0px",
           },
-          gap: 3,
+          columnGap: assistantExpanded ? 3 : 0,
+          rowGap: assistantExpanded ? 3 : 0,
           alignItems: "start",
+          transition: (theme) =>
+            theme.transitions.create(["grid-template-columns", "column-gap"], {
+              duration: 220,
+            }),
+          "@media (prefers-reduced-motion: reduce)": { transition: "none" },
         }}
       >
         <Box sx={{ minWidth: 0 }}>
@@ -337,7 +374,15 @@ export default function ProjectBoard() {
             una tarea.
           </Typography>
         </Box>
-        <AssistantPanel key={project.id} projectId={project.id} />
+        <Box
+          id="project-assistant"
+          hidden={!assistantExpanded}
+          sx={{ minWidth: 0, overflow: "hidden" }}
+        >
+          {(assistantExpanded || assistantMounted) && (
+            <AssistantPanel key={project.id} projectId={project.id} />
+          )}
+        </Box>
       </Box>
       {editingProject && (
         <Dialog
